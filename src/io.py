@@ -7,11 +7,11 @@ def load_benchmark_data(data_dir: str | Path):
     data_dir = Path(data_dir)
     queries = pd.read_parquet(
         data_dir / "benchmark_queries.parquet",
-        columns=["query_id", "search_query"],
+        columns=["query_id", "search_query", "search_infm_params_text"],
     )
     items = pd.read_parquet(
         data_dir / "benchmark_items.parquet",
-        columns=["item_id", "item_title_raw"],
+        columns=["item_id", "item_title_raw", "item_infm_params_text", "item_description_raw"],
     )
     return queries, items
 
