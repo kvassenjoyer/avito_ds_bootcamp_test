@@ -32,6 +32,13 @@ def build_item_text(frame: pd.DataFrame, enriched: bool = True) -> list[str]:
     return (title + " " + title + " " + params + " " + description).str.strip().tolist()
 
 
+def make_history_key(row: pd.Series) -> tuple[str, str]:
+    return (
+        normalize_text(row["search_query"]),
+        normalize_text(row["search_category"]),
+    )
+
+
 def make_exact_query_key(row: pd.Series) -> tuple:
     columns = [
         "search_query",

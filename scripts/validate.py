@@ -12,7 +12,7 @@ from src.text import make_exact_query_key, normalize_text
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Групповая offline-валидация")
+    parser = argparse.ArgumentParser(description="Grouped offline validation")
     parser.add_argument("--train", type=Path, default=Path("data/train.parquet"))
     parser.add_argument("--max-queries", type=int, default=500)
     parser.add_argument("--max-items", type=int, default=100_000)
@@ -45,7 +45,9 @@ def main():
     groups = train["validation_group"].drop_duplicates().to_numpy()
     rng.shuffle(groups)
     validation_groups = set(groups[: args.max_queries])
+
     validation_rows = train[train["validation_group"].isin(validation_groups)]
+    history_rows = train[~train["validation_group"].isin(validation_groups)]
 
     relevant_ids = set(validation_rows["item_id"].astype(str))
     item_rows = train.drop_duplicates("item_id")
@@ -65,16 +67,18 @@ def main():
     )
     targets = [targets_by_group[group] for group in queries["target_group"]]
 
-    print(f"Запросов: {len(queries)}")
-    print(f"Объявлений в корпусе: {len(items)}")
+    print(f"Queries: {len(queries)}")
+    print(f"Candidate items: {len(items)}")
 
-    baseline = TfidfRetriever(enriched_text=False).fit(items)
-    baseline_predictions = baseline.predict(queries, top_k=50)
-    print(f"TF-IDF по заголовку Recall@50: {recall_at_k(baseline_predictions, targets):.5f}")
+    baseline = TfidfRetriever(enriched_text=False).fit(items, history_rows)
+    baseline_predictions = baseline.predict(queries, top_k=50, use_history=False)
+    print(f"Baseline title TF-IDF Recall@50: {recall_at_k(baseline_predictions, targets):.5f}")
 
-    enriched = TfidfRetriever(enriched_text=True).fit(items)
-    text_predictions = enriched.predict(queries, top_k=50)
-    print(f"TF-IDF по расширенному тексту Recall@50: {recall_at_k(text_predictions, targets):.5f}")
+    enriched = TfidfRetriever(enriched_text=True).fit(items, history_rows)
+    text_predictions = enriched.predict(queries, top_k=50, use_history=False)
+    history_predictions = enriched.predict(queries, top_k=50, use_history=True)
+    print(f"Enriched text TF-IDF Recall@50: {recall_at_k(text_predictions, targets):.5f}")
+    print(f"Enriched text + history Recall@50: {recall_at_k(history_predictions, targets):.5f}")
 
 
 if __name__ == "__main__":
