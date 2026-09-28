@@ -10,6 +10,7 @@ OUTPUTS = {
     "baseline": Path("submissions/answer_01_title_tfidf.csv"),
     "text": Path("submissions/answer_02_text_tfidf.csv"),
     "history": Path("submissions/answer_03_tfidf_history.csv"),
+    "location": Path("submissions/answer_04_location_tfidf.csv"),
 }
 
 
@@ -18,8 +19,8 @@ def parse_args():
     parser.add_argument("--data-dir", type=Path, default=Path("data"))
     parser.add_argument(
         "--variant",
-        choices=["baseline", "text", "history", "all"],
-        default="history",
+        choices=["baseline", "text", "history", "location", "all"],
+        default="location",
     )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--batch-size", type=int, default=32)
@@ -43,19 +44,32 @@ def main():
         gc.collect()
         text_predictions = enriched.predict(queries, top_k=50, use_history=False)
         history_predictions = enriched.predict(queries, top_k=50, use_history=True)
+        location_predictions = enriched.predict(
+            queries,
+            top_k=50,
+            use_history=True,
+            use_location=True,
+        )
         save_answer(queries["query_id"], text_predictions, OUTPUTS["text"])
         save_answer(queries["query_id"], history_predictions, OUTPUTS["history"])
-        save_answer(queries["query_id"], history_predictions, Path("answer.csv"))
-        print("Saved three variants to submissions/ and the selected result to answer.csv")
+        save_answer(queries["query_id"], location_predictions, OUTPUTS["location"])
+        save_answer(queries["query_id"], location_predictions, Path("answer.csv"))
+        print("Saved four variants to submissions/ and the selected result to answer.csv")
         return
 
     enriched_text = args.variant != "baseline"
-    use_history = args.variant == "history"
+    use_history = args.variant in {"history", "location"}
+    use_location = args.variant == "location"
     retriever = TfidfRetriever(enriched_text=enriched_text, batch_size=args.batch_size)
     retriever.fit(items, train if use_history else None)
     del train
     gc.collect()
-    predictions = retriever.predict(queries, top_k=50, use_history=use_history)
+    predictions = retriever.predict(
+        queries,
+        top_k=50,
+        use_history=use_history,
+        use_location=use_location,
+    )
 
     output = args.output or OUTPUTS[args.variant]
     output.parent.mkdir(parents=True, exist_ok=True)

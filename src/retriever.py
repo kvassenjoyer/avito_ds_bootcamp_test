@@ -30,6 +30,7 @@ class TfidfRetriever:
         self.items = items.drop_duplicates("item_id").reset_index(drop=True).copy()
         self.item_ids = self.items["item_id"].astype(str).to_numpy()
         self.item_id_set = set(self.item_ids)
+        self.item_locations = self.items["item_location_id"].to_numpy()
         self.item_matrix = self.vectorizer.fit_transform(
             build_item_text(self.items, enriched=self.enriched_text)
         )
@@ -41,6 +42,7 @@ class TfidfRetriever:
         queries: pd.DataFrame,
         top_k: int = 50,
         use_history: bool = True,
+        use_location: bool = False,
     ) -> list[list[str]]:
         query_matrix = self.vectorizer.transform(
             build_query_text(queries, enriched=self.enriched_text)
@@ -51,15 +53,23 @@ class TfidfRetriever:
             end = min(start + self.batch_size, len(queries))
             scores = (query_matrix[start:end] @ self.item_matrix.T).toarray()
 
-            count = min(top_k, len(self.item_ids))
+            candidate_count = 200 if use_location else top_k
+            count = min(candidate_count, len(self.item_ids))
             top_indices = np.argpartition(scores, -count, axis=1)[:, -count:]
             top_scores = np.take_along_axis(scores, top_indices, axis=1)
             order = np.argsort(top_scores, axis=1)[:, ::-1]
             top_indices = np.take_along_axis(top_indices, order, axis=1)
+            top_scores = np.take_along_axis(top_scores, order, axis=1)
 
             for local_index, (_, query) in enumerate(queries.iloc[start:end].iterrows()):
                 history = self.history.get(make_history_key(query), []) if use_history else []
-                lexical = self.item_ids[top_indices[local_index]].tolist()
+                indices = top_indices[local_index]
+                if use_location:
+                    location_matches = self.item_locations[indices] == query["search_location_id"]
+                    reranked_scores = top_scores[local_index] + 0.03 * location_matches
+                    reranked_order = np.argsort(-reranked_scores, kind="stable")
+                    indices = indices[reranked_order]
+                lexical = self.item_ids[indices[:top_k]].tolist()
                 predictions.append(self._merge_unique(history, lexical, top_k))
 
         return predictions

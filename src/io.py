@@ -11,11 +11,23 @@ def load_data(data_dir: str | Path):
     )
     queries = pd.read_parquet(
         data_dir / "benchmark_queries.parquet",
-        columns=["query_id", "search_query", "search_infm_params_text", "search_category"],
+        columns=[
+            "query_id",
+            "search_query",
+            "search_infm_params_text",
+            "search_category",
+            "search_location_id",
+        ],
     )
     items = pd.read_parquet(
         data_dir / "benchmark_items.parquet",
-        columns=["item_id", "item_title_raw", "item_infm_params_text", "item_description_raw"],
+        columns=[
+            "item_id",
+            "item_title_raw",
+            "item_infm_params_text",
+            "item_description_raw",
+            "item_location_id",
+        ],
     )
     return train, queries, items
 

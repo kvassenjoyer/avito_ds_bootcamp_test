@@ -77,8 +77,15 @@ def main():
     enriched = TfidfRetriever(enriched_text=True).fit(items, history_rows)
     text_predictions = enriched.predict(queries, top_k=50, use_history=False)
     history_predictions = enriched.predict(queries, top_k=50, use_history=True)
+    location_predictions = enriched.predict(
+        queries,
+        top_k=50,
+        use_history=True,
+        use_location=True,
+    )
     print(f"Enriched text TF-IDF Recall@50: {recall_at_k(text_predictions, targets):.5f}")
     print(f"Enriched text + history Recall@50: {recall_at_k(history_predictions, targets):.5f}")
+    print(f"Location reranking Recall@50: {recall_at_k(location_predictions, targets):.5f}")
 
 
 if __name__ == "__main__":
